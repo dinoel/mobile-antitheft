@@ -52,8 +52,12 @@
       const graceIntervalRef = useRef(null);
       const armIntervalRef = useRef(null);
       const stageRef = useRef(stage);
+      const thresholdRef = useRef(threshold);
+      const graceSecRef = useRef(graceSec);
 
       useEffect(() => { stageRef.current = stage; }, [stage]);
+      useEffect(() => { thresholdRef.current = threshold; }, [threshold]);
+      useEffect(() => { graceSecRef.current = graceSec; }, [graceSec]);
 
       const requestWakeLock = useCallback(async () => {
         try {
@@ -162,10 +166,10 @@
         const delta = Math.sqrt(dx * dx + dy * dy + dz * dz);
         setMotionLevel(delta);
 
-        if (stageRef.current === 'ARMED' && delta > threshold) {
+        if (stageRef.current === 'ARMED' && delta > thresholdRef.current) {
           triggerGracePeriod();
         }
-      }, [threshold]);
+      }, []);
 
       const requestMotionPermission = useCallback(async () => {
         setSensorStatus('requesting');
@@ -205,7 +209,7 @@
 
       const triggerGracePeriod = useCallback(() => {
         if (stageRef.current !== 'ARMED') return;
-        const totalMs = graceSec * 1000;
+        const totalMs = graceSecRef.current * 1000;
         setStage('TRIGGERED');
         setGraceMs(totalMs);
         setPinBuffer('');
@@ -227,7 +231,7 @@
             }
           }
         }, 50);
-      }, [startSiren, beep, graceSec]);
+      }, [startSiren, beep]);
 
       const beginArming = useCallback(async () => {
         setError('');
@@ -513,7 +517,7 @@
                 }}>
                   <span style={{ minWidth: 100 }}>ДО СИРЕНЫ</span>
                   <input
-                    type="range" min="2" max="30" step="1"
+                    type="range" min="1" max="30" step="1"
                     value={graceSec}
                     onChange={(e) => setGraceSec(parseInt(e.target.value))}
                     style={{ flex: 1, accentColor: palette.primary }}
