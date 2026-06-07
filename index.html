@@ -26,7 +26,7 @@
   <script type="text/babel" data-presets="env,react">
     const { useState, useEffect, useRef, useCallback } = React;
 
-    const GRACE_PERIOD_MS = 5000;
+    const DEFAULT_GRACE_SEC = 5;
     const ARM_DELAY_MS = 3000;
     const DEFAULT_THRESHOLD = 1.5;
 
@@ -37,8 +37,9 @@
       const [confirmBuffer, setConfirmBuffer] = useState('');
       const [error, setError] = useState('');
       const [threshold, setThreshold] = useState(DEFAULT_THRESHOLD);
+      const [graceSec, setGraceSec] = useState(DEFAULT_GRACE_SEC);
       const [armCountdown, setArmCountdown] = useState(0);
-      const [graceMs, setGraceMs] = useState(GRACE_PERIOD_MS);
+      const [graceMs, setGraceMs] = useState(DEFAULT_GRACE_SEC * 1000);
       const [motionLevel, setMotionLevel] = useState(0);
       const [sensorStatus, setSensorStatus] = useState('idle');
 
@@ -204,14 +205,15 @@
 
       const triggerGracePeriod = useCallback(() => {
         if (stageRef.current !== 'ARMED') return;
+        const totalMs = graceSec * 1000;
         setStage('TRIGGERED');
-        setGraceMs(GRACE_PERIOD_MS);
+        setGraceMs(totalMs);
         setPinBuffer('');
         setError('');
         const startedAt = Date.now();
         if (graceIntervalRef.current) clearInterval(graceIntervalRef.current);
         graceIntervalRef.current = setInterval(() => {
-          const remaining = GRACE_PERIOD_MS - (Date.now() - startedAt);
+          const remaining = totalMs - (Date.now() - startedAt);
           if (remaining <= 0) {
             clearInterval(graceIntervalRef.current);
             graceIntervalRef.current = null;
@@ -225,7 +227,7 @@
             }
           }
         }, 50);
-      }, [startSiren, beep]);
+      }, [startSiren, beep, graceSec]);
 
       const beginArming = useCallback(async () => {
         setError('');
@@ -349,7 +351,7 @@
 
       const currentBuffer = stage === 'CONFIRM' ? confirmBuffer : pinBuffer;
       const blink = stage === 'TRIGGERED' || stage === 'ALARM' || stage === 'ARMING';
-      const graceFrac = Math.max(0, Math.min(1, graceMs / GRACE_PERIOD_MS));
+      const graceFrac = Math.max(0, Math.min(1, graceMs / (graceSec * 1000)));
 
       return (
         <div style={{
@@ -492,7 +494,7 @@
             {stage === 'DISARMED' && (
               <>
                 <div style={{
-                  display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
+                  display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10,
                   fontSize: 11, letterSpacing: '0.2em', opacity: 0.85,
                 }}>
                   <span style={{ minWidth: 100 }}>ЧУВСТВ-ТЬ</span>
@@ -503,6 +505,20 @@
                     style={{ flex: 1, accentColor: palette.primary }}
                   />
                   <span style={{ minWidth: 36, textAlign: 'right' }}>{threshold.toFixed(1)}</span>
+                </div>
+
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14,
+                  fontSize: 11, letterSpacing: '0.2em', opacity: 0.85,
+                }}>
+                  <span style={{ minWidth: 100 }}>ДО СИРЕНЫ</span>
+                  <input
+                    type="range" min="2" max="30" step="1"
+                    value={graceSec}
+                    onChange={(e) => setGraceSec(parseInt(e.target.value))}
+                    style={{ flex: 1, accentColor: palette.primary }}
+                  />
+                  <span style={{ minWidth: 36, textAlign: 'right' }}>{graceSec} с</span>
                 </div>
 
                 <button onClick={beginArming} style={armButtonStyle(palette.primary)}>
